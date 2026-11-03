@@ -2098,16 +2098,16 @@ A: AI-generated fake audio/video/image that looks real, often used for impersona
 4. **Say the tool name** — Nmap, Wireshark, Burp Suite, Hydra, etc.
 5. **Mention defence** — every attack question can end with "Prevention: ...".
 6. **Don't confuse:**
-   - Scanning ≠ Enumeration
-   - Vulnerability ≠ Threat ≠ Exploit
-   - Port scanning ≠ Port sweeping
-   - DNS spoofing ≠ DNS poisoning
-   - Cryptography ≠ Steganography
-   - SMTP ≠ POP3 ≠ IMAP
-   - Active deception ≠ Passive deception
-   - WPA2 ≠ WPA3
-   - Session hijacking ≠ Session fixation
-   - Device encryption ≠ Communication encryption
-   - Bluesnarfing ≠ Bluejacking ≠ Bluebugging
+    - Scanning ≠ Enumeration
+    - Vulnerability ≠ Threat ≠ Exploit
+    - Port scanning ≠ Port sweeping
+    - DNS spoofing ≠ DNS poisoning
+    - Cryptography ≠ Steganography
+    - SMTP ≠ POP3 ≠ IMAP
+    - Active deception ≠ Passive deception
+    - WPA2 ≠ WPA3
+    - Session hijacking ≠ Session fixation
+    - Device encryption ≠ Communication encryption
+    - Bluesnarfing ≠ Bluejacking ≠ Bluebugging
 
 **All the best for your practical exam!**
