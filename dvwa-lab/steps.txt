@@ -1,0 +1,140 @@
+=====================================================================
+ DVWA SERVER INSTALLATION - STEP BY STEP  (Kali / Ubuntu / Debian)
+=====================================================================
+
+STEP 1 - INSTALL AND START APACHE
+
+    sudo apt update
+    sudo apt install apache2 -y
+    sudo systemctl start apache2
+    sudo systemctl enable apache2
+
+  Check: open browser -> http://localhost
+         You must see the Apache2 Debian Default Page.
+
+
+STEP 2 - INSTALL PHP AND EXTENSIONS
+
+    sudo apt install -y php php-mysqli php-gd php-curl php-xml php-mbstring
+
+  Check: php -v
+
+
+STEP 3 - INSTALL AND START MARIADB
+
+    sudo apt install -y mariadb-server
+    sudo systemctl start mariadb
+    sudo systemctl enable mariadb
+
+  Check: systemctl is-active mariadb     (should print: active)
+
+
+STEP 4 - DOWNLOAD DVWA INTO THE WEB ROOT
+
+    cd /var/www/html
+    sudo git clone https://github.com/digininja/DVWA.git
+    sudo chown -R www-data:www-data /var/www/html/DVWA
+    sudo chmod -R 755 /var/www/html/DVWA
+
+  Note: folder name must be DVWA (capital letters), created inside
+        /var/www/html, because that is Apache's document root.
+
+
+STEP 5 - CREATE THE CONFIGURATION FILE
+
+    cd /var/www/html/DVWA/config
+    sudo cp config.inc.php.dist config.inc.php
+
+  Then open it:
+
+    sudo nano config.inc.php
+
+  Make sure these three lines match exactly:
+
+    $_DVWA[ 'db_user' ]     = 'dvwa';
+    $_DVWA[ 'db_password' ] = 'p@ssw0rd';
+    $_DVWA[ 'db_database' ] = 'dvwa';
+
+  Save and exit:  Ctrl+X  ->  Y  ->  Enter
+
+  Note: in the default dist file these values are already dvwa /
+        p@ssw0rd / dvwa, so usually you only need to VERIFY them.
+
+
+STEP 6 - CREATE THE DATABASE AND DB USER
+
+    sudo mysql
+
+  Inside the MariaDB prompt, run these one by one:
+
+    CREATE DATABASE dvwa;
+    CREATE USER 'dvwa'@'localhost' IDENTIFIED BY 'p@ssw0rd';
+    GRANT ALL PRIVILEGES ON dvwa.* TO 'dvwa'@'localhost';
+    FLUSH PRIVILEGES;
+    EXIT;
+
+  Note: on Ubuntu/Kali the MariaDB root user uses unix_socket
+        authentication, so "sudo mysql" logs in with NO password.
+        The password is p@ssw0rd  (zero, not the letter O).
+
+
+STEP 7 - RESTART APACHE
+
+    sudo systemctl restart apache2
+
+
+STEP 8 - INSTALL DVWA IN THE BROWSER
+
+  1. Open:  http://localhost/DVWA/setup.php
+  2. The "Database" row must be GREEN.
+  3. Click:  Create / Reset Database
+  4. Open:  http://localhost/DVWA/login.php
+  5. Login with:   admin  /  password
+  6. Left menu -> DVWA Security -> set to LOW -> Submit
+
+  Ignore the red "reCAPTCHA key missing" warning - it is not needed.
+
+
+STEP 9 - VERIFY
+
+  Open: http://localhost/DVWA/login.php
+  You should get the DVWA login page, then the DVWA home page.
+
+
+=====================================================================
+ ALL COMMANDS IN ONE BLOCK (fastest way)
+=====================================================================
+
+    sudo apt update
+    sudo apt install -y apache2 mariadb-server php php-mysqli php-gd \
+         php-curl php-xml php-mbstring git
+    sudo systemctl start apache2 mariadb
+    cd /var/www/html
+    sudo git clone https://github.com/digininja/DVWA.git
+    sudo chown -R www-data:www-data /var/www/html/DVWA
+    sudo chmod -R 755 /var/www/html/DVWA
+    cd /var/www/html/DVWA/config
+    sudo cp config.inc.php.dist config.inc.php
+    sudo mysql -e "CREATE DATABASE IF NOT EXISTS dvwa;
+                   CREATE USER IF NOT EXISTS 'dvwa'@'localhost' IDENTIFIED BY 'p@ssw0rd';
+                   GRANT ALL PRIVILEGES ON dvwa.* TO 'dvwa'@'localhost';
+                   FLUSH PRIVILEGES;"
+    sudo systemctl restart apache2
+
+  Then browser: http://localhost/DVWA/setup.php -> Create / Reset Database
+                login admin / password  ->  DVWA Security -> Low
+
+
+=====================================================================
+ TROUBLESHOOTING
+=====================================================================
+
+  404 on /DVWA                -> check: ls /var/www/html  (must be DVWA)
+  Could not connect to DB     -> sudo systemctl start mariadb
+  mysqli not installed        -> sudo apt install php-mysqli -y
+                                 sudo systemctl restart apache2
+  Login fails                 -> setup.php -> Create / Reset Database
+  Payload shows as plain text -> DVWA Security is not LOW
+  git: command not found      -> sudo apt install git -y
+  Page not updating           -> Ctrl + Shift + R
+=====================================================================
