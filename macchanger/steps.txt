@@ -1,0 +1,164 @@
+=====================================================================
+ MAC ADDRESS SPOOFING WITH macchanger  -  KALI LINUX
+ Experiment : Changing the MAC address of a network interface
+ Tool       : macchanger (pre-installed in Kali Linux)
+ Interface  : eth0  (VirtualBox / VMware virtual adapter)
+=====================================================================
+
+
+1. THEORY (short)
+
+  A MAC address is a 48-bit (6-byte) hardware address written in hex,
+  e.g.  ba:5c:be:1f:3f:a1
+        |___ ___| |___ ___|
+            |         |
+            |         +-- last 3 bytes : NIC serial number
+            +------------ first 3 bytes : OUI (vendor code)
+
+  It works at Layer 2 (Data Link) of the OSI model.
+  Bits inside the first byte:
+      LSB (I/G bit)      = 0 -> unicast, 1 -> multicast
+      2nd bit (U/L bit)  = 0 -> globally unique (burned-in)
+                           1 -> locally administered (software / spoofed)
+
+  macchanger writes a new value into the interface driver, so the host
+  can present any Layer-2 identity it wants. It does NOT change the IP
+  address and does NOT hide the host from the ISP.
+
+
+2. SESSION TRANSCRIPT (exact output obtained in the lab)
+
+  root@kali:~# macchanger -s eth0
+  Current MAC:   ba:5c:be:1f:3f:a1 (unknown)
+  Permanent MAC: 00:00:00:00:00:00 (XEROX CORPORATION)
+
+  root@kali:~# ifconfig eth0 down
+
+  root@kali:~# macchanger -r eth0
+  Current MAC:   ba:5c:be:1f:3f:a1 (unknown)
+  Permanent MAC: 00:00:00:00:00:00 (XEROX CORPORATION)
+  New MAC:       e6:4d:92:7d:8d:b1 (unknown)
+
+  root@kali:~# ifconfig eth0 up
+
+  root@kali:~# macchanger -s eth0
+  Current MAC:   e6:4d:92:7d:8d:b1 (unknown)
+  Permanent MAC: 00:00:00:00:00:00 (XEROX CORPORATION)
+
+  root@kali:~#
+
+
+3. WHAT EACH COMMAND DID
+
+  macchanger -s eth0   -> show current + permanent MAC (before change)
+  ifconfig eth0 down   -> interface must be DOWN to accept a new MAC
+  macchanger -r eth0   -> assign a fully RANDOM MAC
+  ifconfig eth0 up     -> bring the interface back ONLINE
+  macchanger -s eth0   -> verify the new MAC took effect
+
+
+4. OBSERVATIONS / NOTES
+
+  (a) HEX, NOT LETTERS
+      Values like "3f:a1" and "8d:b1" contain the digit ONE (1),
+      not the letter L. Hex digits are only 0-9 and a-f, so a MAC
+      address can never contain the letters l, o, s etc.
+
+  (b) PERMANENT MAC = 00:00:00:00:00:00
+      This is a VIRTUAL MACHINE. The hypervisor does not expose the
+      burned-in address, so macchanger reads all zeros.
+      Consequence: "macchanger -p eth0" cannot restore the original,
+      because it would try to set 00:00:00:00:00:00.
+      (XEROX CORPORATION is shown only because 00:00:00 is Xerox's
+      old OUI - it is cosmetic, not a real Xerox card.)
+
+  (c) THE RANDOM MAC IS VALID
+      New MAC e6:4d:92:7d:8d:b1
+      first byte e6 = 1110 0110
+          LSB      = 0  -> unicast
+          2nd bit  = 1  -> locally administered (spoofed)
+      So macchanger produced a legal unicast, locally-administered MAC.
+
+  (d) The change is NOT permanent. A reboot restores the MAC configured
+      on the virtual adapter.
+
+
+5. VERIFICATION COMMANDS AFTER THE CHANGE
+
+  ip link show eth0              # link/ether should show e6:4d:92:7d:8d:b1
+  ping -c 3 8.8.8.8              # confirm connectivity still works
+  sudo dhclient -r eth0 && sudo dhclient eth0    # renew DHCP if needed
+
+
+6. RESTORING THE ORIGINAL MAC (virtual machine)
+
+  Since the permanent address is 00:00:00:00:00:00, restore manually:
+
+      sudo ifconfig eth0 down
+      sudo macchanger -m ba:5c:be:1f:3f:a1 eth0
+      sudo ifconfig eth0 up
+      macchanger -s eth0
+
+  Alternative: reboot the VM - VirtualBox / VMware re-applies the MAC
+  from the adapter settings.
+
+
+7. OTHER USEFUL macchanger OPTIONS
+
+  macchanger -r eth0        random MAC (any vendor)
+  macchanger -a eth0        random MAC of the same vendor kind
+  macchanger -A eth0        random MAC of any vendor
+  macchanger -e eth0        randomise only the last 3 bytes
+  macchanger -m XX:XX:XX:XX:XX:XX eth0   set an exact MAC
+  macchanger -p eth0        restore permanent (burned-in) MAC
+  macchanger -l             list known vendor OUI prefixes
+  macchanger -s eth0        show current / permanent MAC
+
+
+8. OBSERVATION TABLE
+
+  +---+---------------------------+---------------------------+---------------------------+
+  | # | Command                   | Before                    | After                     |
+  +---+---------------------------+---------------------------+---------------------------+
+  | 1 | macchanger -s eth0        | ba:5c:be:1f:3f:a1         | (info only)               |
+  | 2 | ifconfig eth0 down        | state UP                  | state DOWN                |
+  | 3 | macchanger -r eth0        | ba:5c:be:1f:3f:a1         | e6:4d:92:7d:8d:b1         |
+  | 4 | ifconfig eth0 up          | state DOWN                | state UP                  |
+  | 5 | macchanger -s eth0        | ba:5c:be:1f:3f:a1         | e6:4d:92:7d:8d:b1 (OK)    |
+  | 6 | Permanent MAC             | 00:00:00:00:00:00         | unchanged (VM)            |
+  +---+---------------------------+---------------------------+---------------------------+
+
+
+9. INFERENCE
+
+  The current MAC changed from ba:5c:be:1f:3f:a1 to e6:4d:92:7d:8d:b1
+  while the permanent (burned-in) address remained unchanged. This
+  proves that the MAC address is a software-configurable Layer-2
+  identifier and not a fixed hardware property. Because an attacker
+  can present any MAC, MAC filtering / port security alone is not a
+  security control. In a virtual machine the permanent address is
+  reported as all zeros, so the original must be restored manually
+  or by rebooting.
+
+
+10. CONCLUSION
+
+  In this experiment the MAC address of the eth0 interface in Kali
+  Linux was changed using macchanger. After recording the original
+  address, the interface was brought down, a random MAC was assigned
+  with "macchanger -r", and the interface was brought back up.
+  Verification with "macchanger -s" showed the new current MAC while
+  the permanent address stayed the same, and network connectivity was
+  unaffected. The original address was then restored. The experiment
+  demonstrates that a MAC address provides identification but not
+  authentication, so it can be spoofed freely and must not be relied
+  upon as a security mechanism.
+
+
+11. LEGAL NOTE
+
+  Changing the MAC address of your own machine is legal. Using it to
+  bypass access controls on a network you do not own or have written
+  permission to test is illegal (IT Act 2000 s.43/s.66, CFAA,
+  Computer Misuse Act).
+=====================================================================
